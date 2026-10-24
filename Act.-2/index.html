@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ejercicio 2 - Captura de Medios con Cámara Web/Móvil</title>
+  <meta name="description" content="Acceso al hardware de video mediante navigator.mediaDevices.getUserMedia, renderizado en video y captura estática a canvas HTML.">
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Shutter Flash Overlay for Photo Capture -->
+  <div id="shutterFlash" class="shutter-flash" aria-hidden="true"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="badge-tag">Actividad 2 • Ejercicio 2</div>
+      <h1>Captura de Medios con Cámara Web / Móvil</h1>
+      <p class="subtitle">
+        Acceso al hardware de video en tiempo real mediante <code>navigator.mediaDevices.getUserMedia</code>, renderizado en elemento <code>&lt;video&gt;</code> y congelado fotográfico en <code>&lt;canvas&gt;</code>.
+      </p>
+    </header>
+
+    <!-- Barra de Control y Configuración Rápida -->
+    <section class="control-panel-card">
+      <div class="panel-row">
+        <!-- Selector de Cámara -->
+        <div class="control-group">
+          <label for="cameraSelect">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            Dispositivo de Video:
+          </label>
+          <select id="cameraSelect" class="form-select">
+            <option value="">Detectando cámaras disponibles...</option>
+          </select>
+        </div>
+
+        <!-- Orientación / Facing Mode -->
+        <div class="control-group">
+          <label for="facingModeSelect">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+            Orientación (Móvil):
+          </label>
+          <select id="facingModeSelect" class="form-select">
+            <option value="user">Frontal (Selfie / Usuario)</option>
+            <option value="environment">Trasera (Ambiente / Principal)</option>
+          </select>
+        </div>
+
+        <!-- Resolución Deseada -->
+        <div class="control-group">
+          <label for="resolutionSelect">
+            <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            Resolución:
+          </label>
+          <select id="resolutionSelect" class="form-select">
+            <option value="1920x1080">Full HD (1080p - 1920x1080)</option>
+            <option value="1280x720" selected>HD (720p - 1280x720)</option>
+            <option value="640x480">Estándar (VGA - 640x480)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Botones de Acción Primaria -->
+      <div class="action-buttons-row">
+        <button id="btnStartCamera" class="btn btn-primary">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Encender Cámara
+        </button>
+
+        <button id="btnStopCamera" class="btn btn-outline" disabled>
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="6" y="6" width="12" height="12"/>
+          </svg>
+          Detener Flujo
+        </button>
+
+        <button id="btnCapturePhoto" class="btn btn-capture" disabled>
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          Capturar Fotografía
+        </button>
+
+        <div class="toggles-cluster">
+          <label class="toggle-control" title="Efecto espejo horizontal para previsualización natural">
+            <input type="checkbox" id="toggleMirror" checked>
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Modo Espejo</span>
+          </label>
+          <label class="toggle-control" title="Reproducir sonido de obturador sintético con Web Audio API">
+            <input type="checkbox" id="toggleSound" checked>
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Sonido Obturador</span>
+          </label>
+          <label class="toggle-control" title="Muestra guías de encuadre fotográfico (regla de los tercios)">
+            <input type="checkbox" id="toggleGrid">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Rejilla 3x3</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Alertas de Estado / Errores -->
+    <div id="statusAlert" class="alert-box alert-hidden" role="alert">
+      <div class="alert-icon" id="alertIcon"></div>
+      <div class="alert-content">
+        <strong id="alertTitle">Estado</strong>
+        <p id="alertMessage">Mensaje informativo</p>
+      </div>
+      <button id="alertCloseBtn" class="alert-close" aria-label="Cerrar">&times;</button>
+    </div>
+
+    <!-- Grid Principal de Renderizado: Video vs Canvas -->
+    <main class="media-display-grid">
+      
+      <!-- Panel Izquierdo: Flujo en Vivo (<video>) -->
+      <section class="card camera-card">
+        <div class="card-header">
+          <div class="header-left">
+            <div class="icon-circle icon-live">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 7l-7 5 7 5V7z"/>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+            </div>
+            <div>
+              <h2>Flujo de Video en Vivo</h2>
+              <p class="card-desc">Elemento HTML <code>&lt;video autoplay playsinline&gt;</code></p>
+            </div>
+          </div>
+          <div class="stream-pill" id="streamStatusPill">
+            <span class="status-indicator-dot" id="streamDot"></span>
+            <span id="streamStatusText">Cámara Inactiva</span>
+          </div>
+        </div>
+
+        <!-- Visor del Video con Overlays -->
+        <div class="viewport-wrapper" id="videoViewport">
+          <!-- Elemento Video HTML5 -->
+          <video id="videoElement" autoplay playsinline muted class="mirrored"></video>
+
+          <!-- Rejilla de Composición Fotográfica (Regla de Tercios) -->
+          <div class="viewfinder-grid" id="viewfinderGrid">
+            <div class="grid-line vertical line-1"></div>
+            <div class="grid-line vertical line-2"></div>
+            <div class="grid-line horizontal line-1"></div>
+            <div class="grid-line horizontal line-2"></div>
+          </div>
+
+          <!-- Marcador Central de Enfoque -->
+          <div class="focus-reticle" id="focusReticle">
+            <div class="corner top-left"></div>
+            <div class="corner top-right"></div>
+            <div class="corner bottom-left"></div>
+            <div class="corner bottom-right"></div>
+            <div class="center-crosshair">+</div>
+          </div>
+
+          <!-- Placeholder cuando la cámara está apagada -->
+          <div class="viewport-placeholder" id="videoPlaceholder">
+            <div class="placeholder-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </div>
+            <h3>Cámara Desconectada</h3>
+            <p>Haz clic en <strong>"Encender Cámara"</strong> para solicitar acceso al hardware de video mediante <code>navigator.mediaDevices.getUserMedia</code>.</p>
+          </div>
+        </div>
+
+        <!-- Telemetría en Tiempo Real del Flujo -->
+        <div class="stream-telemetry">
+          <div class="telemetry-item">
+            <span class="telemetry-label">Resolución Actual:</span>
+            <span class="telemetry-value" id="currentResolution">-</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">Dispositivo Activo:</span>
+            <span class="telemetry-value" id="currentDeviceLabel">-</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">Tasa de Cuadros:</span>
+            <span class="telemetry-value" id="currentFrameRate">-</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel Derecho: Fotografía Capturada (<canvas>) -->
+      <section class="card canvas-card">
+        <div class="card-header">
+          <div class="header-left">
+            <div class="icon-circle icon-photo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </div>
+            <div>
+              <h2>Fotografía Estática Capturada</h2>
+              <p class="card-desc">Renderizado a través de <code>CanvasRenderingContext2D.drawImage()</code></p>
+            </div>
+          </div>
+          <span class="status-pill status-ready" id="photoStatusBadge">
+            <span id="photoBadgeText">En Espera</span>
+          </span>
+        </div>
+
+        <!-- Visor del Canvas -->
+        <div class="viewport-wrapper" id="canvasViewport">
+          <!-- Elemento Canvas HTML5 -->
+          <canvas id="photoCanvas" class="hidden-canvas"></canvas>
+
+          <!-- Placeholder cuando aún no se ha tomado fotografía -->
+          <div class="viewport-placeholder" id="canvasPlaceholder">
+            <div class="placeholder-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="m21 15-5-5L5 21"/>
+              </svg>
+            </div>
+            <h3>Ninguna Foto Capturada</h3>
+            <p>Enciende la cámara y presiona el botón <strong>"Capturar Fotografía"</strong> para congelar un fotograma en este lienzo.</p>
+          </div>
+        </div>
+
+        <!-- Filtros Rápidos de Canvas -->
+        <div class="filters-panel" id="filtersPanel" style="display: none;">
+          <span class="filter-title">Filtros de Procesamiento:</span>
+          <div class="filter-chips">
+            <button class="filter-chip active" data-filter="none">Original</button>
+            <button class="filter-chip" data-filter="grayscale">B & N</button>
+            <button class="filter-chip" data-filter="sepia">Sepia</button>
+            <button class="filter-chip" data-filter="invert">Invertido</button>
+            <button class="filter-chip" data-filter="contrast">Alto Contraste</button>
+            <button class="filter-chip" data-filter="cyberpunk">Cyberpunk</button>
+          </div>
+        </div>
+
+        <!-- Metadatos de la Fotografía -->
+        <div class="photo-metadata" id="photoMetadata" style="display: none;">
+          <div class="telemetry-item">
+            <span class="telemetry-label">Dimensiones Reales:</span>
+            <span class="telemetry-value" id="photoDimensions">-</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">Hora de Toma:</span>
+            <span class="telemetry-value" id="photoTimestamp">-</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">Formato:</span>
+            <span class="telemetry-value">PNG (Sin Pérdida)</span>
+          </div>
+        </div>
+
+        <!-- Acciones sobre la Foto -->
+        <div class="photo-actions" id="photoActions" style="display: none;">
+          <button id="btnDownloadPhoto" class="btn btn-secondary">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Descargar Imagen (.png)
+          </button>
+
+          <button id="btnCopyPhoto" class="btn btn-outline">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Copiar al Portapapeles
+          </button>
+
+          <button id="btnClearPhoto" class="btn btn-ghost" title="Limpiar captura actual">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Limpiar
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Galería de Capturas de la Sesión -->
+    <section class="card gallery-card" id="gallerySection" style="display: none;">
+      <div class="card-header">
+        <div class="header-left">
+          <div class="icon-circle icon-gallery">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
+          </div>
+          <div>
+            <h2>Galería de la Sesión</h2>
+            <p class="card-desc">Historial de tomas capturadas durante la ejecución actual</p>
+          </div>
+        </div>
+        <button id="btnClearGallery" class="btn btn-ghost btn-sm">Limpiar Galería</button>
+      </div>
+
+      <div class="gallery-strip" id="galleryStrip">
+        <!-- Miniaturas inyectadas dinámicamente con JS -->
+      </div>
+    </section>
+
+    <!-- Tarjeta de Referencia Técnica y Explicación -->
+    <section class="card technical-card">
+      <div class="card-header">
+        <div class="header-left">
+          <div class="icon-circle icon-code">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+          </div>
+          <div>
+            <h2>Arquitectura y Funcionamiento Técnico</h2>
+            <p class="card-desc">Cómo interactúan la API de Medios y el Canvas HTML5</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tech-steps-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Petición de Acceso con getUserMedia</h3>
+            <p>Se invoca <code>navigator.mediaDevices.getUserMedia(constraints)</code> enviando parámetros de video (resolución, id de dispositivo o facingMode). El navegador solicita el consentimiento al usuario.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Flujo de Video en &lt;video&gt;</h3>
+            <p>La promesa devuelve un <code>MediaStream</code> que se asigna directamente a <code>video.srcObject = stream</code>. El elemento reproduce los cuadros a 30-60 FPS con aceleración de hardware.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Captura Estática a &lt;canvas&gt;</h3>
+            <p>Al accionar el obturador, se ajusta el ancho y alto del canvas al <code>video.videoWidth</code> y <code>video.videoHeight</code> reales, y se dibuja el fotograma exacto con <code>ctx.drawImage(video, 0, 0)</code>.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3>Exportación y Procesamiento</h3>
+            <p>La imagen en el canvas se puede procesar píxel a píxel, aplicar filtros con <code>ctx.filter</code>, o exportarse a formato PNG/JPEG mediante <code>canvas.toDataURL()</code> o <code>canvas.toBlob()</code>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>Desarrollado para el Ejercicio 2 • API de Medios y Canvas HTML5</p>
+      <p class="footer-note">Requiere contexto seguro (HTTPS o <code>localhost</code>) para conceder acceso a la cámara.</p>
+    </footer>
+  </div>
+
+  <!-- Script Principal -->
+  <script src="script.js"></script>
+</body>
+</html>
