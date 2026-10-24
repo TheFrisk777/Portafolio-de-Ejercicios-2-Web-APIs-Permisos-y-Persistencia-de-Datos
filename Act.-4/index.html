@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ejercicio 4 - Persistencia de Datos Asíncrona con IndexedDB</title>
+  <meta name="description" content="Implementación nativa y asíncrona de IndexedDB para almacenamiento local persistente con Object Stores, índices y operaciones CRUD 100% offline.">
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Estilos Personalizados -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Contenedor para Notificaciones Toast Flotantes -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <div class="app-container">
+
+    <!-- Encabezado Principal -->
+    <header class="app-header">
+      <div class="header-badges">
+        <span class="badge-tag">Actividad 4 • Ejercicio 4</span>
+        <span class="badge-tech">IndexedDB API</span>
+        <span class="badge-tech">Asynchronous CRUD</span>
+        <span class="badge-tech">100% Offline</span>
+      </div>
+      <h1>Persistencia Asíncrona con IndexedDB</h1>
+      <p class="subtitle">
+        Apertura y creación de un <strong>Object Store</strong> estructurado con índices en <strong>IndexedDB nativo</strong>, gestionado asíncronamente mediante promesas para insertar, consultar, actualizar y eliminar registros locales sin depender de internet.
+      </p>
+    </header>
+
+    <!-- Barra de Diagnóstico y Estado del Almacenamiento -->
+    <section class="status-grid" aria-label="Diagnóstico de IndexedDB y Red">
+      
+      <!-- Estado de IndexedDB -->
+      <div class="status-card" id="dbStatusCard">
+        <div class="card-icon db-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-label">Estado de la Base de Datos</span>
+          <div class="badge-status-container">
+            <span id="dbBadge" class="status-pill pill-warning">
+              <span class="dot"></span>
+              <span id="dbStatusText">Conectando...</span>
+            </span>
+          </div>
+          <p id="dbDetails" class="status-meta">BD: RegistrosDB • Versión: v1</p>
+        </div>
+      </div>
+
+      <!-- Estado del Almacén (Object Store) -->
+      <div class="status-card" id="storeStatusCard">
+        <div class="card-icon store-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="21 8 21 21 3 21 3 8"/>
+            <rect x="1" y="3" width="22" height="5"/>
+            <line x1="10" y1="12" x2="14" y2="12"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-label">Object Store Activo</span>
+          <div class="badge-status-container">
+            <span id="storeBadge" class="status-pill pill-success">
+              <span class="dot"></span>
+              <span id="storeNameText">registros</span>
+            </span>
+          </div>
+          <p id="storeDetails" class="status-meta">Clave: id (autoIncrement) • 4 Índices</p>
+        </div>
+      </div>
+
+      <!-- Estado de Conectividad (Demostración Offline) -->
+      <div class="status-card" id="netStatusCard">
+        <div class="card-icon net-icon">
+          <svg id="netIconSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+            <line x1="12" y1="20" x2="12.01" y2="20"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-label">Conectividad de Red</span>
+          <div class="badge-status-container">
+            <span id="netBadge" class="status-pill pill-info">
+              <span class="dot"></span>
+              <span id="netStatusText">Verificando...</span>
+            </span>
+          </div>
+          <p id="netDetails" class="status-meta">IndexedDB funciona 100% sin internet</p>
+        </div>
+      </div>
+
+      <!-- Métricas / Capacidad -->
+      <div class="status-card" id="metricsStatusCard">
+        <div class="card-icon metrics-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-label">Registros Guardados</span>
+          <div class="badge-status-container">
+            <span id="recordsCountBadge" class="status-pill pill-primary">
+              <strong id="totalRecordsCount">0</strong> registros
+            </span>
+          </div>
+          <p id="storageDetails" class="status-meta">Espacio en disco: Calculando...</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Grid Principal de la Aplicación -->
+    <main class="main-layout">
+
+      <!-- COLUMNA IZQUIERDA: Formulario de Inserción y Herramientas -->
+      <section class="left-panel">
+        
+        <!-- Tarjeta de Inserción -->
+        <article class="panel-card insert-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-icon add-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="16"/>
+                  <line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+              </span>
+              <div>
+                <h2>Insertar Nuevo Registro</h2>
+                <p class="panel-desc">Transacción asíncrona de escritura <code>readwrite</code> en el Object Store</p>
+              </div>
+            </div>
+          </div>
+
+          <form id="recordForm" class="record-form">
+            
+            <!-- Campo Título -->
+            <div class="form-group">
+              <label for="tituloInput">Título o Asunto <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <input 
+                  type="text" 
+                  id="tituloInput" 
+                  name="titulo" 
+                  placeholder="Ej: Reporte de Auditoría de Red" 
+                  required 
+                  maxlength="100"
+                  autocomplete="off"
+                >
+              </div>
+            </div>
+
+            <!-- Fila Categoría y Prioridad -->
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="categoriaSelect">Categoría <span class="required">*</span></label>
+                <div class="select-wrapper">
+                  <select id="categoriaSelect" name="categoria" required>
+                    <option value="Trabajo">💼 Trabajo</option>
+                    <option value="Estudio">📚 Estudio</option>
+                    <option value="Personal">🏠 Personal</option>
+                    <option value="Finanzas">💰 Finanzas</option>
+                    <option value="Sistemas">💻 Sistemas</option>
+                    <option value="Urgente">🚨 Urgente</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="prioridadSelect">Prioridad <span class="required">*</span></label>
+                <div class="select-wrapper">
+                  <select id="prioridadSelect" name="prioridad" required>
+                    <option value="Alta">🔴 Alta</option>
+                    <option value="Media" selected>🟡 Media</option>
+                    <option value="Baja">🟢 Baja</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Campo Descripción -->
+            <div class="form-group">
+              <label for="descripcionInput">Descripción / Detalles <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <textarea 
+                  id="descripcionInput" 
+                  name="descripcion" 
+                  rows="3" 
+                  placeholder="Detalles del registro que se persistirá localmente en IndexedDB..." 
+                  required
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- Fila Estado y Etiquetas -->
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="estadoSelect">Estado Inicial</label>
+                <div class="select-wrapper">
+                  <select id="estadoSelect" name="estado">
+                    <option value="Pendiente">⏳ Pendiente</option>
+                    <option value="En Progreso">⚡ En Progreso</option>
+                    <option value="Completado">✅ Completado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="tagsInput">Etiquetas (separadas por coma)</label>
+                <div class="input-wrapper">
+                  <input 
+                    type="text" 
+                    id="tagsInput" 
+                    name="tags" 
+                    placeholder="redes, pwa, offline" 
+                    autocomplete="off"
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Botones de Acción del Formulario -->
+            <div class="form-actions">
+              <button type="submit" id="btnSubmitRecord" class="btn btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                <span>Guardar en IndexedDB</span>
+              </button>
+              
+              <button type="button" id="btnResetForm" class="btn btn-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+                <span>Limpiar</span>
+              </button>
+            </div>
+
+          </form>
+        </article>
+
+        <!-- Tarjeta de Gestión del Almacén y Herramientas -->
+        <article class="panel-card tools-card">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <span class="panel-icon tool-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                </svg>
+              </span>
+              <div>
+                <h2>Herramientas de Almacén</h2>
+                <p class="panel-desc">Pruebas rápidas, backup JSON y vaciado completo</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="tools-grid">
+            <button type="button" id="btnSeedData" class="btn btn-outline" title="Cargar 5 registros variados de prueba">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span>Generar Muestras</span>
+            </button>
+
+            <button type="button" id="btnExportJson" class="btn btn-outline" title="Descargar todos los registros como JSON">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>Exportar JSON</span>
+            </button>
+
+            <label for="importJsonInput" class="btn btn-outline btn-file-label" title="Importar archivo JSON local a IndexedDB">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              <span>Importar JSON</span>
+              <input type="file" id="importJsonInput" accept=".json" style="display: none;">
+            </label>
+
+            <button type="button" id="btnClearStore" class="btn btn-danger-outline" title="Eliminar todos los registros del Object Store">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/>
+                <line x1="14" y1="11" x2="14" y2="17"/>
+              </svg>
+              <span>Vaciar Almacén</span>
+            </button>
+          </div>
+
+          <!-- Inspector Rápido de Esquema IndexedDB -->
+          <div class="schema-info-box">
+            <div class="schema-header">
+              <span class="schema-title">Estructura del Almacén en Memoria</span>
+              <button type="button" id="btnRefreshStats" class="btn-icon-subtle" title="Recargar métricas">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 4v6h-6"/>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+              </button>
+            </div>
+            <ul class="schema-list">
+              <li><strong>Database Name:</strong> <code>RegistrosDB</code></li>
+              <li><strong>Object Store:</strong> <code>registros</code> (keyPath: <code>id</code>, autoIncrement: <code>true</code>)</li>
+              <li><strong>Índices:</strong> <code>idx_categoria</code>, <code>idx_prioridad</code>, <code>idx_estado</code>, <code>idx_fecha</code></li>
+              <li><strong>Modo Transaccional:</strong> Totalmente asíncrono vía Promises nativas</li>
+            </ul>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- COLUMNA DERECHA: Consulta, Filtrado y Visualización de Registros -->
+      <section class="right-panel">
+        
+        <article class="panel-card query-card">
+          
+          <!-- Encabezado de Consulta -->
+          <div class="panel-header query-header">
+            <div class="panel-title-group">
+              <span class="panel-icon search-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </span>
+              <div>
+                <h2>Consultar y Explorar Registros</h2>
+                <p class="panel-desc">Lectura asíncrona mediante transacciones <code>readonly</code> y filtrado en tiempo real</p>
+              </div>
+            </div>
+
+            <!-- Contador de Resultados Filtrados -->
+            <div class="results-badge">
+              <span id="filteredCountText">0</span> de <span id="totalFilterCountText">0</span> registros
+            </div>
+          </div>
+
+          <!-- Barra de Filtros y Búsqueda -->
+          <div class="filter-toolbar">
+            
+            <!-- Buscador de Texto Libre -->
+            <div class="search-box">
+              <svg class="search-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input 
+                type="text" 
+                id="searchFilterInput" 
+                placeholder="Buscar por título, contenido o etiquetas..." 
+                autocomplete="off"
+              >
+              <button type="button" id="btnClearSearch" class="btn-clear-search" style="display: none;" title="Limpiar búsqueda">✕</button>
+            </div>
+
+            <!-- Controles de Filtrado Rápido -->
+            <div class="filter-controls-row">
+              
+              <!-- Filtro Categoría -->
+              <div class="filter-item">
+                <label for="filterCategoria">Categoría:</label>
+                <select id="filterCategoria">
+                  <option value="TODAS">Todas las categorías</option>
+                  <option value="Trabajo">💼 Trabajo</option>
+                  <option value="Estudio">📚 Estudio</option>
+                  <option value="Personal">🏠 Personal</option>
+                  <option value="Finanzas">💰 Finanzas</option>
+                  <option value="Sistemas">💻 Sistemas</option>
+                  <option value="Urgente">🚨 Urgente</option>
+                </select>
+              </div>
+
+              <!-- Filtro Prioridad -->
+              <div class="filter-item">
+                <label for="filterPrioridad">Prioridad:</label>
+                <select id="filterPrioridad">
+                  <option value="TODAS">Todas las prioridades</option>
+                  <option value="Alta">🔴 Alta</option>
+                  <option value="Media">🟡 Media</option>
+                  <option value="Baja">🟢 Baja</option>
+                </select>
+              </div>
+
+              <!-- Filtro Estado -->
+              <div class="filter-item">
+                <label for="filterEstado">Estado:</label>
+                <select id="filterEstado">
+                  <option value="TODOS">Todos los estados</option>
+                  <option value="Pendiente">⏳ Pendiente</option>
+                  <option value="En Progreso">⚡ En Progreso</option>
+                  <option value="Completado">✅ Completado</option>
+                </select>
+              </div>
+
+              <!-- Ordenación -->
+              <div class="filter-item">
+                <label for="sortBySelect">Ordenar por:</label>
+                <select id="sortBySelect">
+                  <option value="fecha_desc">Fecha (Más recientes)</option>
+                  <option value="fecha_asc">Fecha (Más antiguos)</option>
+                  <option value="prioridad">Prioridad (Alta a Baja)</option>
+                  <option value="titulo">Título (A-Z)</option>
+                  <option value="id_desc">ID (Mayor a Menor)</option>
+                </select>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- Listado de Registros en Formato de Tarjetas -->
+          <div id="recordsContainer" class="records-container" aria-live="polite">
+            <!-- Los registros se inyectarán dinámicamente aquí vía script.js -->
+            <div class="loading-state">
+              <div class="spinner"></div>
+              <p>Consultando registros en IndexedDB...</p>
+            </div>
+          </div>
+
+        </article>
+
+      </section>
+
+    </main>
+
+    <!-- Modal de Detalles e Inspección de Registro JSON -->
+    <div id="recordModal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </span>
+            <h3 id="modalRecordTitle">Detalles del Registro</h3>
+          </div>
+          <button type="button" id="btnCloseModal" class="btn-close-modal" aria-label="Cerrar modal">✕</button>
+        </div>
+        
+        <div class="modal-body">
+          <div id="modalDetailsContent" class="modal-details-content">
+            <!-- Contenido dinámico -->
+          </div>
+
+          <div class="json-inspector">
+            <div class="json-header">
+              <span>Objeto Crudo en IndexedDB (Clave Primaria & Atributos)</span>
+              <button type="button" id="btnCopyJson" class="btn-copy">Copiar JSON</button>
+            </div>
+            <pre><code id="modalJsonCode">{}</code></pre>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="btnModalCloseAction" class="btn btn-secondary">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de Edición de Registro -->
+    <div id="editModal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-icon edit-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </span>
+            <h3>Modificar Registro en IndexedDB</h3>
+          </div>
+          <button type="button" id="btnCloseEditModal" class="btn-close-modal" aria-label="Cerrar modal de edición">✕</button>
+        </div>
+
+        <form id="editRecordForm">
+          <div class="modal-body">
+            <input type="hidden" id="editRecordId">
+            <input type="hidden" id="editRecordFecha">
+
+            <div class="form-group">
+              <label for="editTituloInput">Título <span class="required">*</span></label>
+              <input type="text" id="editTituloInput" required maxlength="100">
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="editCategoriaSelect">Categoría</label>
+                <select id="editCategoriaSelect">
+                  <option value="Trabajo">💼 Trabajo</option>
+                  <option value="Estudio">📚 Estudio</option>
+                  <option value="Personal">🏠 Personal</option>
+                  <option value="Finanzas">💰 Finanzas</option>
+                  <option value="Sistemas">💻 Sistemas</option>
+                  <option value="Urgente">🚨 Urgente</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="editPrioridadSelect">Prioridad</label>
+                <select id="editPrioridadSelect">
+                  <option value="Alta">🔴 Alta</option>
+                  <option value="Media">🟡 Media</option>
+                  <option value="Baja">🟢 Baja</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="editDescripcionInput">Descripción <span class="required">*</span></label>
+              <textarea id="editDescripcionInput" rows="3" required></textarea>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label for="editEstadoSelect">Estado</label>
+                <select id="editEstadoSelect">
+                  <option value="Pendiente">⏳ Pendiente</option>
+                  <option value="En Progreso">⚡ En Progreso</option>
+                  <option value="Completado">✅ Completado</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="editTagsInput">Etiquetas (separadas por coma)</label>
+                <input type="text" id="editTagsInput">
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" id="btnCancelEdit" class="btn btn-secondary">Cancelar</button>
+            <button type="submit" class="btn btn-primary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/>
+                <polyline points="7 3 7 8 15 8"/>
+              </svg>
+              <span>Actualizar (store.put)</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Pie de Página Informativo -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <p>
+          <strong>Actividad 4:</strong> Persistencia de Datos Asíncrona con IndexedDB. Totalmente desacoplada de la red mediante transacciones nativas <code>IDBTransaction</code> y eventos de ciclo de vida <code>onupgradeneeded</code>.
+        </p>
+        <span class="footer-badge">Persistencia Local Segura • Sin Servidores Externos</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Lógica Principal -->
+  <script src="script.js"></script>
+</body>
+</html>
