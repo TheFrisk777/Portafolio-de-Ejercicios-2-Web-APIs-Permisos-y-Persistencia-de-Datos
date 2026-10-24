@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ejercicio 5 - Caché Dinámica con Fallback a IndexedDB (Network-First)</title>
+  <meta name="description" content="Estrategia de Caché Dinámica con Fallback a IndexedDB y Network-First. Consumo de API REST remota con fetch y recuperación offline automática.">
+
+  <!-- Fuentes tipográficas modernas: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Hoja de estilos del proyecto -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Contenedor de notificaciones flotantes (Toasts) -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Contenedor Principal de la Aplicación -->
+  <div class="app-wrapper">
+
+    <!-- Encabezado Hero -->
+    <header class="app-header">
+      <div class="header-badges">
+        <span class="badge-tag">Actividad 5 • Ejercicio 5</span>
+        <span class="badge-pill badge-cyan">Network-First</span>
+        <span class="badge-pill badge-violet">Stale-While-Revalidate</span>
+        <span class="badge-pill badge-emerald">IndexedDB Fallback</span>
+        <span class="badge-pill badge-amber">Fetch REST API</span>
+      </div>
+
+      <h1 class="main-title">
+        Caché Dinámica con Fallback a <span class="gradient-text">IndexedDB</span>
+      </h1>
+      
+      <p class="header-description">
+        Consumo asíncrono de APIs REST remotas con estrategia <strong>Network-First</strong> y <strong>Stale-While-Revalidate</strong>. 
+        Al recibir una respuesta exitosa, se persiste una copia indexada en <strong>IndexedDB</strong>. 
+        Si el dispositivo pierde la conectividad o el servidor remoto falla, la interfaz recupera y renderiza 
+        de manera inmediata y automática el <strong>último JSON respaldado localmente</strong>.
+      </p>
+    </header>
+
+    <!-- Barra de Estado y Telemetría en Tiempo Real -->
+    <section class="telemetry-grid" aria-label="Monitoreo de Red e IndexedDB">
+      
+      <!-- Tarjeta 1: Estado de Red Real -->
+      <div class="telemetry-card" id="cardNetworkStatus">
+        <div class="card-icon-wrapper icon-net">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+            <line x1="12" y1="20" x2="12.01" y2="20"/>
+          </svg>
+        </div>
+        <div class="card-data">
+          <span class="card-title">Conectividad de Red</span>
+          <div class="status-indicator">
+            <span id="networkPill" class="pill pill-success">
+              <span class="ping-dot"></span>
+              <span id="networkText">Online (En Línea)</span>
+            </span>
+          </div>
+          <span id="networkDetails" class="card-subtext">Navegador con acceso a Internet</span>
+        </div>
+      </div>
+
+      <!-- Tarjeta 2: Origen de los Datos Actuales -->
+      <div class="telemetry-card" id="cardDataOrigin">
+        <div class="card-icon-wrapper icon-source">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <div class="card-data">
+          <span class="card-title">Origen de Datos en Pantalla</span>
+          <div class="status-indicator">
+            <span id="originPill" class="pill pill-neutral">
+              <span class="ping-dot"></span>
+              <span id="originText">Sin Peticiones Aún</span>
+            </span>
+          </div>
+          <span id="originDetails" class="card-subtext">Esperando ejecución de fetch</span>
+        </div>
+      </div>
+
+      <!-- Tarjeta 3: Telemetría / Rendimiento HTTP -->
+      <div class="telemetry-card" id="cardPerformance">
+        <div class="card-icon-wrapper icon-perf">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div class="card-data">
+          <span class="card-title">Latencia y Respuesta</span>
+          <div class="status-indicator">
+            <span id="latencyPill" class="pill pill-neutral">
+              <span id="latencyValue">-- ms</span>
+            </span>
+            <span id="httpStatusBadge" class="http-status-code">HTTP ---</span>
+          </div>
+          <span id="timestampDetails" class="card-subtext">Última sync: Ninguna</span>
+        </div>
+      </div>
+
+      <!-- Tarjeta 4: Estado del Object Store en IndexedDB -->
+      <div class="telemetry-card" id="cardIndexedDB">
+        <div class="card-icon-wrapper icon-db">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+        </div>
+        <div class="card-data">
+          <span class="card-title">Almacén IndexedDB</span>
+          <div class="status-indicator">
+            <span id="dbPill" class="pill pill-success">
+              <span class="ping-dot"></span>
+              <span id="dbRecordsCount">0 endpoints cacheados</span>
+            </span>
+          </div>
+          <span id="dbDetails" class="card-subtext">BD: DynamicCacheDB (v1)</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Banner Alerta de Fallback a Caché (Visible cuando los datos provienen de IndexedDB por fallo de red) -->
+    <div id="fallbackBanner" class="fallback-banner hidden" role="alert">
+      <div class="banner-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <div class="banner-content">
+        <h4 id="bannerTitle">¡Modo Fallback Offline Activado!</h4>
+        <p id="bannerMessage">
+          La petición a la red no pudo completarse (sin conexión o error de servidor). 
+          La interfaz recuperó y renderizó automáticamente la última copia local preservada en 
+          <strong>IndexedDB</strong> guardada el <span id="bannerTimestamp" class="highlight-date">--</span>.
+        </p>
+      </div>
+      <button id="btnDismissBanner" class="banner-close" aria-label="Cerrar aviso">&times;</button>
+    </div>
+
+    <!-- Panel de Control y Configuración de Estrategias -->
+    <section class="control-panel glass-card">
+      <div class="panel-header">
+        <div class="panel-header-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="svg-inline">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <h2>Consola de Control de Estrategia de Caché</h2>
+        </div>
+        <div class="panel-help">
+          <span class="help-text">Prueba el comportamiento en línea y simula desconexión con 1 clic</span>
+        </div>
+      </div>
+
+      <div class="controls-grid">
+
+        <!-- Selector de API Endpoint -->
+        <div class="control-group">
+          <label for="apiEndpointSelect" class="control-label">
+            <span class="label-number">1</span> Recurso API REST Remota
+          </label>
+          <div class="select-wrapper">
+            <select id="apiEndpointSelect" class="form-select">
+              <option value="posts" selected>Publicaciones de Blog (JSONPlaceholder /posts - 20 items)</option>
+              <option value="products">Catálogo de Productos (DummyJSON /products - 12 items)</option>
+              <option value="users">Directorio de Usuarios (JSONPlaceholder /users - 10 items)</option>
+              <option value="localMock">Endpoint Mock Local (Node /api/articles)</option>
+              <option value="custom">URL Personalizada (Custom REST API)</option>
+            </select>
+          </div>
+          <div id="customUrlContainer" class="custom-url-box hidden">
+            <input type="url" id="customUrlInput" class="form-input" placeholder="https://api.ejemplo.com/datos" value="https://jsonplaceholder.typicode.com/todos?_limit=15">
+          </div>
+        </div>
+
+        <!-- Selector de Estrategia de Caché -->
+        <div class="control-group">
+          <label for="strategySelect" class="control-label">
+            <span class="label-number">2</span> Estrategia de Almacenamiento
+          </label>
+          <div class="select-wrapper">
+            <select id="strategySelect" class="form-select">
+              <option value="networkFirst" selected>
+                🟢 Network-First (Prioridad Red + Fallback a IndexedDB)
+              </option>
+              <option value="staleWhileRevalidate">
+                ⚡ Stale-While-Revalidate (Caché Inmediata + Sync de Red)
+              </option>
+              <option value="cacheFirst">
+                💾 Cache-First (Prioridad IndexedDB si existe)
+              </option>
+            </select>
+          </div>
+          <p id="strategyDescription" class="strategy-hint">
+            <strong>Network-First:</strong> Consulta primero la API en la nube. Si responde 200 OK, actualiza la interfaz y almacena una copia en IndexedDB. Si falla o no hay conexión, recurre al último JSON guardado en IndexedDB.
+          </p>
+        </div>
+
+        <!-- Simulador de Red (Permite probar offline sin desconectar Wi-Fi) -->
+        <div class="control-group">
+          <label class="control-label">
+            <span class="label-number">3</span> Simulador de Fallas de Red
+          </label>
+          
+          <div class="switches-container">
+            <label class="switch-label" title="Simula que el navegador no tiene internet">
+              <input type="checkbox" id="toggleSimulateOffline" class="switch-checkbox">
+              <span class="switch-slider"></span>
+              <span class="switch-text">
+                <strong>Simular Modo Offline</strong>
+                <small>Fuerza desconexión artificial para probar el fallback a IndexedDB</small>
+              </span>
+            </label>
+
+            <label class="switch-label" title="Simula que el servidor remoto responde con código 500">
+              <input type="checkbox" id="toggleSimulateError" class="switch-checkbox">
+              <span class="switch-slider"></span>
+              <span class="switch-text">
+                <strong>Simular Error de Servidor (500)</strong>
+                <small>Fuerza un fallo de respuesta HTTP en la API remota</small>
+              </span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Barra de Acciones Principales -->
+      <div class="panel-actions">
+        <button id="btnFetchData" class="btn btn-primary" title="Realizar petición HTTP fetch con la estrategia seleccionada">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          <span id="btnFetchText">Ejecutar Petición (Fetch)</span>
+        </button>
+
+        <button id="btnForceCacheFallback" class="btn btn-secondary" title="Recuperar directamente los datos guardados en IndexedDB">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+          <span>Leer de IndexedDB</span>
+        </button>
+
+        <button id="btnInspectDB" class="btn btn-outline" title="Abrir inspector visual de la base de datos IndexedDB">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span>Inspeccionar IndexedDB</span>
+        </button>
+
+        <button id="btnClearCache" class="btn btn-danger-outline" title="Eliminar todas las copias de caché en IndexedDB">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          <span>Purgar Caché Local</span>
+        </button>
+      </div>
+
+    </section>
+
+    <!-- Barra de Filtro y Metadatos del Feed -->
+    <section class="feed-header-bar">
+      <div class="feed-title-section">
+        <h3 id="feedHeading">Datos Obtenidos</h3>
+        <span id="renderedCountBadge" class="count-badge">0 elementos</span>
+        <span id="feedSourceBadge" class="source-tag tag-none">Ningún origen</span>
+      </div>
+
+      <div class="feed-search-section">
+        <div class="search-input-wrapper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Filtrar resultados en pantalla..." class="search-input">
+        </div>
+      </div>
+    </section>
+
+    <!-- Contenedor de Resultados Renderizados -->
+    <main id="dataFeedContainer" class="feed-grid" aria-live="polite">
+      
+      <!-- Estado Inicial Vacio -->
+      <div id="initialState" class="empty-state">
+        <div class="empty-icon-circle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+        </div>
+        <h3>Listo para ejecutar el primer Fetch</h3>
+        <p>
+          Haz clic en <strong>"Ejecutar Petición (Fetch)"</strong> para consumir la API remota. 
+          Al completarse, se guardará automáticamente una copia en IndexedDB. 
+          Luego podrás activar <strong>"Simular Modo Offline"</strong> para comprobar cómo la interfaz 
+          se recupera y renderiza automáticamente con los datos cacheados.
+        </p>
+        <button id="btnQuickStart" class="btn btn-primary btn-sm">
+          🚀 Iniciar Petición Ahora
+        </button>
+      </div>
+
+    </main>
+
+    <!-- Indicador de Carga / Spinner -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+      <div class="loading-spinner"></div>
+      <p id="loadingText" class="loading-message">Consultando API remota...</p>
+    </div>
+
+    <!-- Modal Inspector de IndexedDB -->
+    <div id="dbModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalDbTitle">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-header-info">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-svg">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            </svg>
+            <div>
+              <h3 id="modalDbTitle">Inspector de Almacén IndexedDB</h3>
+              <p class="modal-subtitle">Base de datos: <code>DynamicCacheDB</code> • Object Store: <code>api_cache_store</code></p>
+            </div>
+          </div>
+          <button id="btnCloseModal" class="modal-close-btn" aria-label="Cerrar modal">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="db-inspector-toolbar">
+            <span id="modalCachedCount" class="badge-tag">Cargando registros...</span>
+            <div class="db-actions-quick">
+              <button id="btnRefreshModal" class="btn btn-sm btn-outline">🔄 Refrescar</button>
+              <button id="btnModalClearCache" class="btn btn-sm btn-danger-outline">🗑️ Vaciar Store</button>
+            </div>
+          </div>
+
+          <!-- Lista de endpoints cacheados en IndexedDB -->
+          <div id="cachedEndpointsList" class="cached-endpoints-list">
+            <!-- Se inyecta dinámicamente -->
+          </div>
+
+          <!-- Visor de JSON crudo -->
+          <div class="raw-json-viewer">
+            <div class="raw-json-header">
+              <span id="rawJsonLabel">Vista previa del registro seleccionado:</span>
+              <button id="btnCopyJson" class="btn-copy">📋 Copiar JSON</button>
+            </div>
+            <pre id="rawJsonContent" class="json-pre"><code>Selecciona un registro de la lista superior para visualizar su estructura JSON almacenada.</code></pre>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btnCloseModalFooter" class="btn btn-secondary">Cerrar Inspector</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pie de Página Informativo y Técnico -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <div class="footer-left">
+          <span class="footer-brand">Actividad 5 • Desarrollo Web Profesional</span>
+          <p>Implementación de estrategias <strong>Network-First</strong> y <strong>Stale-While-Revalidate</strong> con persistencia en <strong>IndexedDB nativo</strong>.</p>
+        </div>
+        <div class="footer-right">
+          <span class="tech-badge">Fetch API</span>
+          <span class="tech-badge">IndexedDB v2.0</span>
+          <span class="tech-badge">Offline Fallback</span>
+          <span class="tech-badge">Vanilla JS</span>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Script principal de la aplicación -->
+  <script src="script.js"></script>
+</body>
+</html>
