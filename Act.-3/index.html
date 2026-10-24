@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ejercicio 3 - Notificaciones Push Locales con Service Worker</title>
+  <meta name="description" content="Implementación de notificaciones push locales desde Service Worker con Notification.requestPermission, título, cuerpo, icono y vibración personalizada.">
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Estilos Personalizados -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Alerta emergente en toast para eventos en vivo -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <div class="app-container">
+    
+    <!-- Encabezado Principal -->
+    <header class="app-header">
+      <div class="header-badges">
+        <span class="badge-tag">Actividad 3 • Ejercicio 3</span>
+        <span class="badge-tech">Service Worker API</span>
+        <span class="badge-tech">Notification API</span>
+      </div>
+      <h1>Notificaciones Push Locales</h1>
+      <p class="subtitle">
+        Solicitud interactiva de permisos mediante <code>Notification.requestPermission()</code> y disparo de notificaciones nativas enriquecidas (con título, cuerpo, icono y vibración) ejecutadas a través del evento del Service Worker (<code>self.registration.showNotification</code>).
+      </p>
+    </header>
+
+    <!-- Estado del Sistema y Diagnóstico en Tiempo Real -->
+    <section class="status-grid" aria-label="Diagnóstico del Sistema">
+      
+      <!-- Estado del Service Worker -->
+      <div class="status-card" id="swStatusCard">
+        <div class="card-icon sw-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-label">Estado del Service Worker</span>
+          <div class="badge-status-container">
+            <span id="swBadge" class="status-pill pill-warning">
+              <span class="dot"></span>
+              <span id="swStatusText">Verificando...</span>
+            </span>
+          </div>
+          <p id="swDetails" class="status-meta">Scope: Detectando...</p>
+        </div>
+      </div>
+
+      <!-- Estado de Permisos de Notificación -->
+      <div class="status-card" id="permStatusCard">
+        <div class="card-icon notif-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-label">Permiso de Notificaciones</span>
+          <div class="badge-status-container">
+            <span id="permBadge" class="status-pill pill-neutral">
+              <span class="dot"></span>
+              <span id="permStatusText">Pendiente</span>
+            </span>
+          </div>
+          <p id="permDetails" class="status-meta">Notification.permission: default</p>
+        </div>
+      </div>
+
+      <!-- Soporte de Motor de Vibración -->
+      <div class="status-card" id="vibStatusCard">
+        <div class="card-icon vib-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+            <line x1="12" y1="18" x2="12.01" y2="18"/>
+            <path d="M2 8v8M22 8v8M1 10v4M23 10v4"/>
+          </svg>
+        </div>
+        <div class="card-content">
+          <span class="card-label">Motor de Vibración</span>
+          <div class="badge-status-container">
+            <span id="vibBadge" class="status-pill pill-info">
+              <span class="dot"></span>
+              <span id="vibStatusText">Detectando...</span>
+            </span>
+          </div>
+          <p id="vibDetails" class="status-meta">navigator.vibrate</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Banner de Permisos / Acción Rápida -->
+    <div id="permissionBanner" class="permission-banner banner-warning">
+      <div class="banner-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </div>
+      <div class="banner-body">
+        <h4 id="bannerTitle">Permiso de Notificación Requerido</h4>
+        <p id="bannerDesc">
+          Para que el Service Worker pueda desplegar notificaciones nativas en el sistema operativo, debes otorgar permiso explícito al sitio web.
+        </p>
+      </div>
+      <div class="banner-action">
+        <button id="btnRequestPermission" class="btn btn-primary btn-glow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          Solicitar Permiso
+        </button>
+      </div>
+    </div>
+
+    <!-- Contenido Principal: Dos Columnas -->
+    <main class="main-layout">
+      
+      <!-- Columna Izquierda: Formulario de Notificación y Presets -->
+      <section class="config-section">
+        
+        <!-- Tarjeta de Plantillas Rápidas -->
+        <div class="card preset-card">
+          <div class="card-header">
+            <h3>
+              <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              Plantillas Rápidas (Presets)
+            </h3>
+            <span class="header-hint">Selecciona una configuración lista para probar</span>
+          </div>
+
+          <div class="presets-grid">
+            <button type="button" class="preset-btn active" data-preset="reminder">
+              <span class="preset-emoji">🔔</span>
+              <div class="preset-info">
+                <strong>Recordatorio</strong>
+                <small>Vibración estándar [200, 100, 200]</small>
+              </div>
+            </button>
+
+            <button type="button" class="preset-btn" data-preset="urgent">
+              <span class="preset-emoji">⚡</span>
+              <div class="preset-info">
+                <strong>Alerta Urgente</strong>
+                <small>Vibración intensa [300, 100, 300, 100, 400]</small>
+              </div>
+            </button>
+
+            <button type="button" class="preset-btn" data-preset="task">
+              <span class="preset-emoji">✅</span>
+              <div class="preset-info">
+                <strong>Tarea Completada</strong>
+                <small>Vibración corta [150, 80, 150]</small>
+              </div>
+            </button>
+
+            <button type="button" class="preset-btn" data-preset="message">
+              <span class="preset-emoji">💬</span>
+              <div class="preset-info">
+                <strong>Mensaje Nuevo</strong>
+                <small>Vibración sutil [100, 50, 100]</small>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tarjeta de Configuración de la Notificación -->
+        <div class="card form-card">
+          <div class="card-header">
+            <h3>
+              <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Personalizador de Notificación Local
+            </h3>
+            <span class="header-hint">Parámetros que se pasarán a self.registration.showNotification</span>
+          </div>
+
+          <form id="notificationForm" class="notification-form" onsubmit="return false;">
+            
+            <!-- Título -->
+            <div class="form-group">
+              <label for="notifTitle">
+                <span>Título de la Notificación:</span>
+                <span class="param-badge">title</span>
+              </label>
+              <input type="text" id="notifTitle" class="form-input" value="¡Recordatorio de Actividad!" maxlength="60" required placeholder="Ej: Nuevo aviso importante">
+            </div>
+
+            <!-- Cuerpo (Body) -->
+            <div class="form-group">
+              <label for="notifBody">
+                <span>Cuerpo / Mensaje:</span>
+                <span class="param-badge">options.body</span>
+              </label>
+              <textarea id="notifBody" class="form-textarea" rows="3" maxlength="200" required placeholder="Describe el contenido de la notificación...">Esta es una notificación local enviada desde el Service Worker con icono y patrón de vibración.</textarea>
+            </div>
+
+            <!-- Selector de Icono -->
+            <div class="form-group">
+              <label>
+                <span>Icono de Notificación:</span>
+                <span class="param-badge">options.icon</span>
+              </label>
+              <div class="icon-selector-group">
+                <label class="icon-choice">
+                  <input type="radio" name="iconOption" value="icons/icon-192.png" checked>
+                  <img src="icons/icon-192.png" alt="Icono Campana" class="choice-thumb">
+                  <span>Campana (Estándar)</span>
+                </label>
+
+                <label class="icon-choice">
+                  <input type="radio" name="iconOption" value="icons/urgent.png">
+                  <img src="icons/urgent.png" alt="Icono Urgente" class="choice-thumb">
+                  <span>Alerta (Rojo)</span>
+                </label>
+
+                <label class="icon-choice">
+                  <input type="radio" name="iconOption" value="icons/success.png">
+                  <img src="icons/success.png" alt="Icono Éxito" class="choice-thumb">
+                  <span>Éxito (Verde)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Patrón de Vibración -->
+            <div class="form-group">
+              <div class="vibrate-label-row">
+                <label for="notifVibrate">
+                  <span>Patrón de Vibración (milisegundos):</span>
+                  <span class="param-badge">options.vibrate</span>
+                </label>
+                <button type="button" id="btnTestHaptics" class="btn btn-sm btn-ghost" title="Prueba el motor de vibración de tu dispositivo">
+                  📳 Probar Vibración
+                </button>
+              </div>
+              <input type="text" id="notifVibrate" class="form-input" value="200, 100, 200" placeholder="Ej: 200, 100, 200, 100, 400">
+              <span class="field-hint">Secuencia en ms: [vibrar, pausar, vibrar...]. *Funciona en dispositivos móviles y navegadores compatibles.</span>
+            </div>
+
+            <!-- Opciones Adicionales / Avanzadas -->
+            <details class="advanced-accordion">
+              <summary>
+                <span>Opciones Avanzadas del Service Worker (tag, renotify, acciones)</span>
+                <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </summary>
+              <div class="advanced-content">
+                <div class="form-row">
+                  <div class="form-group col-6">
+                    <label for="notifTag">
+                      <span>Tag (Identificador):</span>
+                      <span class="param-badge">options.tag</span>
+                    </label>
+                    <input type="text" id="notifTag" class="form-input" value="act3-notif" placeholder="act3-recordatorio">
+                  </div>
+                  <div class="form-group col-6">
+                    <label for="notifSoundChime">
+                      <span>Efecto de Sonido Web Audio:</span>
+                    </label>
+                    <select id="notifSoundChime" class="form-select">
+                      <option value="bell">Sintetizador Campana Suave</option>
+                      <option value="chime">Chime Moderno Trino</option>
+                      <option value="urgent">Tono de Alerta Doble</option>
+                      <option value="none">Silencioso (Solo Sistema)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="checkbox-group">
+                  <label class="custom-checkbox">
+                    <input type="checkbox" id="notifRenotify" checked>
+                    <span class="checkbox-mark"></span>
+                    <span><strong>Renotify:</strong> Volver a emitir vibración/sonido si se reemplaza una con el mismo tag.</span>
+                  </label>
+
+                  <label class="custom-checkbox">
+                    <input type="checkbox" id="notifRequireInteraction">
+                    <span class="checkbox-mark"></span>
+                    <span><strong>Require Interaction:</strong> Mantener visible hasta que el usuario la descarte o pulse.</span>
+                  </label>
+                </div>
+              </div>
+            </details>
+
+            <!-- Acciones Principales de Disparo -->
+            <div class="dispatch-actions">
+              
+              <!-- Botón 1: Disparo Inmediato Vía SW -->
+              <button type="button" id="btnDispatchSW" class="btn btn-primary btn-lg">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                <span>Disparar Notificación (Vía SW)</span>
+              </button>
+
+              <!-- Botón 2: Disparo con Temporizador en Segundo Plano -->
+              <button type="button" id="btnDispatchDelayed" class="btn btn-secondary btn-lg" title="Espera 4 segundos para que minimices o cambies de pestaña">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span>Probar en 4 Segundos (Segundo Plano)</span>
+              </button>
+
+            </div>
+
+          </form>
+        </div>
+
+      </section>
+
+      <!-- Columna Derecha: Vista Previa, Explicación y Consola de Eventos -->
+      <section class="preview-section">
+        
+        <!-- Tarjeta: Maqueta en Vivo de la Notificación del Sistema -->
+        <div class="card preview-card">
+          <div class="card-header">
+            <h3>
+              <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              Vista Previa de la Notificación del S.O.
+            </h3>
+            <span class="header-hint">Simulación en vivo del renderizado</span>
+          </div>
+
+          <div class="mockup-stage">
+            <div class="os-notification-mockup" id="osMockup">
+              <div class="mockup-header">
+                <div class="mockup-app-info">
+                  <img src="icons/badge-72.png" alt="Badge" class="mockup-badge">
+                  <span class="mockup-app-name">Chrome • localhost:3002</span>
+                </div>
+                <span class="mockup-time" id="mockupTime">Ahora</span>
+              </div>
+
+              <div class="mockup-content">
+                <div class="mockup-texts">
+                  <h5 id="mockupTitle" class="mockup-title">¡Recordatorio de Actividad!</h5>
+                  <p id="mockupBody" class="mockup-body">Esta es una notificación local enviada desde el Service Worker con icono y patrón de vibración.</p>
+                </div>
+                <div class="mockup-icon-wrapper">
+                  <img id="mockupIcon" src="icons/icon-192.png" alt="Icono Notificación" class="mockup-large-icon">
+                </div>
+              </div>
+
+              <div class="mockup-footer">
+                <span class="vibe-indicator" id="mockupVibeBadge">
+                  📳 [200, 100, 200] ms
+                </span>
+                <span class="tag-indicator" id="mockupTagBadge">
+                  🏷️ act3-notif
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta: Consola de Actividad y Eventos del Service Worker -->
+        <div class="card console-card">
+          <div class="card-header">
+            <div class="console-title-group">
+              <h3>
+                <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="4 17 10 11 4 5"/>
+                  <line x1="12" y1="19" x2="20" y2="19"/>
+                </svg>
+                Consola de Eventos en Tiempo Real
+              </h3>
+              <span class="live-dot" title="Escuchando eventos del Service Worker"></span>
+            </div>
+            <div class="console-tools">
+              <button id="btnClearConsole" class="btn btn-sm btn-ghost" title="Limpiar registros">
+                Limpiar
+              </button>
+            </div>
+          </div>
+
+          <div class="console-body" id="consoleBody">
+            <div class="log-entry log-system">
+              <span class="log-time">00:00:00</span>
+              <span class="log-tag tag-sys">SISTEMA</span>
+              <span class="log-msg">Iniciando aplicación y comprobando soporte de Service Worker y Notification API...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta Educativa: Código Clave Implementado -->
+        <div class="card code-card">
+          <div class="card-header">
+            <h3>
+              <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 18 22 12 16 6"/>
+                <polyline points="8 6 2 12 8 18"/>
+              </svg>
+              Código Clave del Ejercicio
+            </h3>
+          </div>
+
+          <div class="code-snippets">
+            <div class="snippet-block">
+              <span class="snippet-title">1. Solicitud de Permisos (Cliente):</span>
+              <pre><code>const permission = await Notification.requestPermission();
+if (permission === 'granted') {
+  console.log('Permiso concedido para notificar');
+}</code></pre>
+            </div>
+
+            <div class="snippet-block">
+              <span class="snippet-title">2. Disparo en el Service Worker (sw.js):</span>
+              <pre><code>self.registration.showNotification(title, {
+  body: 'Mensaje de la notificación',
+  icon: 'icons/icon-192.png',
+  vibrate: [200, 100, 200],
+  tag: 'mi-alerta-local'
+});</code></pre>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>Ejercicio 3: Notificaciones Push Locales con Service Worker • Visual 2</p>
+      <div class="footer-links">
+        <span>API: <code>Notification.requestPermission()</code></span>
+        <span>•</span>
+        <span>Worker: <code>self.registration.showNotification()</code></span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Script Principal de la Aplicación -->
+  <script src="script.js"></script>
+</body>
+</html>
