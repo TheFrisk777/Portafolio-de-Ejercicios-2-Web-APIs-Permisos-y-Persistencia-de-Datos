@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ejercicio 1 - Permisos y Geolocalización GPS</title>
+  <meta name="description" content="Consulta de estado con Permissions API y solicitud de ubicación GPS con mapa interactivo Leaflet.">
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS for Interactive Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="badge-tag">Actividad 1 • Ejercicio 1</div>
+      <h1>Verificador de Permisos y Geolocalización</h1>
+      <p class="subtitle">
+        Inspección en tiempo real con <code>Permissions API</code> y captura de posición satelital con <code>Geolocation API</code>.
+      </p>
+    </header>
+
+    <!-- Main Grid -->
+    <main class="dashboard-grid">
+      
+      <!-- Columna Izquierda: Permisos y Controles -->
+      <section class="card permissions-card">
+        <div class="card-header">
+          <div class="icon-circle icon-shield">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+          </div>
+          <div>
+            <h2>Permissions API</h2>
+            <p class="card-desc">Consulta el estado sin disparar solicitudes invasivas</p>
+          </div>
+        </div>
+
+        <div class="permission-status-box" id="geoPermissionBox">
+          <div class="status-meta">
+            <span class="label">Permiso de Geolocalización</span>
+            <span class="status-pill status-prompt" id="geoStatusBadge">
+              <span class="indicator-dot"></span>
+              <span id="geoStatusText">Consultando...</span>
+            </span>
+          </div>
+          <p class="status-explanation" id="geoStatusExplanation">
+            Evaluando el estado actual mediante <code>navigator.permissions.query({ name: 'geolocation' })</code>.
+          </p>
+        </div>
+
+        <div class="action-buttons">
+          <button id="btnCheckPermissions" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+            </svg>
+            Re-verificar Permiso
+          </button>
+        </div>
+
+        <!-- Otros permisos para enriquecer la demo -->
+        <div class="other-permissions-block">
+          <h3>Otros permisos del navegador:</h3>
+          <div class="mini-permission-grid">
+            <div class="mini-perm-item">
+              <span class="mini-perm-name">Notificaciones</span>
+              <span class="mini-badge" id="permNotifications">--</span>
+            </div>
+            <div class="mini-perm-item">
+              <span class="mini-perm-name">Cámara</span>
+              <span class="mini-badge" id="permCamera">--</span>
+            </div>
+            <div class="mini-perm-item">
+              <span class="mini-perm-name">Micrófono</span>
+              <span class="mini-badge" id="permMic">--</span>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Control de Solicitud GPS -->
+        <div class="card-header mt-1">
+          <div class="icon-circle icon-gps">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="6" y2="12"/>
+              <line x1="18" y1="12" x2="22" y2="12"/>
+              <line x1="12" y1="2" x2="12" y2="6"/>
+              <line x1="12" y1="18" x2="12" y2="22"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          <div>
+            <h2>Geolocation API</h2>
+            <p class="card-desc">Solicitud de coordenadas exactas</p>
+          </div>
+        </div>
+
+        <div class="gps-options">
+          <label class="toggle-option">
+            <input type="checkbox" id="highAccuracyToggle" checked>
+            <span class="checkbox-custom"></span>
+            <span>Alta precisión (Activar chip GPS)</span>
+          </label>
+        </div>
+
+        <div class="action-buttons-stack">
+          <button id="btnGetLocation" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            Obtener Posición Actual (getCurrentPosition)
+          </button>
+          <button id="btnWatchLocation" class="btn btn-outline">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <span id="watchBtnText">Iniciar Seguimiento en Vivo</span>
+          </button>
+        </div>
+
+        <!-- Banner de mensajes de estado/error -->
+        <div id="statusNotification" class="notification hidden" role="alert">
+          <span class="notif-icon" id="notifIcon">ℹ️</span>
+          <span class="notif-text" id="notifText">Listo para solicitar coordenadas.</span>
+        </div>
+      </section>
+
+      <!-- Columna Derecha: Datos y Mapa Interactivo -->
+      <section class="card results-card">
+        
+        <!-- Coordenadas Display en Bloques -->
+        <div class="coordinates-section">
+          <h2>Coordenadas Obtenidas</h2>
+          <div class="coords-grid">
+            <div class="coord-box">
+              <div class="coord-header">
+                <span class="coord-label">LATITUD</span>
+                <button class="btn-copy" id="copyLat" title="Copiar latitud">Copiar</button>
+              </div>
+              <div class="coord-value" id="valLatitude">--.------°</div>
+            </div>
+
+            <div class="coord-box">
+              <div class="coord-header">
+                <span class="coord-label">LONGITUD</span>
+                <button class="btn-copy" id="copyLng" title="Copiar longitud">Copiar</button>
+              </div>
+              <div class="coord-value" id="valLongitude">--.------°</div>
+            </div>
+
+            <div class="coord-box">
+              <div class="coord-header">
+                <span class="coord-label">PRECISIÓN ESTIMADA</span>
+              </div>
+              <div class="coord-value highlight" id="valAccuracy">-- m</div>
+            </div>
+
+            <div class="coord-box">
+              <div class="coord-header">
+                <span class="coord-label">ÚLTIMA LECTURA</span>
+              </div>
+              <div class="coord-value small-text" id="valTimestamp">Sin datos</div>
+            </div>
+          </div>
+
+          <!-- Métricas complementarias -->
+          <div class="metrics-row">
+            <div class="metric-item">
+              <span class="metric-title">Altitud:</span>
+              <span class="metric-val" id="valAltitude">N/A</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-title">Velocidad:</span>
+              <span class="metric-val" id="valSpeed">N/A</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-title">Rumbo:</span>
+              <span class="metric-val" id="valHeading">N/A</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mapa interactivo -->
+        <div class="map-container-wrapper">
+          <div class="map-toolbar">
+            <span class="map-title">📍 Mapa Interactivo (OpenStreetMap / Leaflet)</span>
+            <div class="map-links" id="externalLinks" style="display: none;">
+              <a id="linkGoogleMaps" href="#" target="_blank" rel="noopener noreferrer" class="link-btn">
+                Ver en Google Maps ↗
+              </a>
+            </div>
+          </div>
+          <div id="map" class="map-display"></div>
+          <div id="mapPlaceholder" class="map-placeholder">
+            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+            <p>Haz clic en <strong>"Obtener Posición Actual"</strong> para centrar el mapa en tu ubicación satelital.</p>
+          </div>
+        </div>
+
+        <!-- Consola de Eventos Técnica -->
+        <div class="tech-console">
+          <div class="console-header">
+            <span>Terminal de Eventos y Llamadas API</span>
+            <button class="btn-clear-log" id="btnClearLog">Limpiar</button>
+          </div>
+          <div class="console-body" id="consoleLogs">
+            <div class="log-entry log-info">[INFO] Aplicación inicializada. Comprobando soporte del navegador...</div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <footer class="app-footer">
+      <p>Desarrollado para <strong>Act.-1: Ejercicio 1</strong> • APIs utilizadas: <code>Permissions API</code> y <code>Geolocation API</code></p>
+    </footer>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Custom Logic -->
+  <script src="script.js"></script>
+</body>
+</html>
