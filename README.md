@@ -1,86 +1,115 @@
-Portafolio 2: APIs Avanzadas para Aplicaciones Web Progresivas (PWA)
+<h1 align="center">PORTAFOLIO 2</h1>
 
-  Descripción
+<h3 align="center">APIs AVANZADAS PARA APLICACIONES WEB PROGRESIVAS</h3>
 
-Este portafolio tiene como objetivo desarrollar cinco ejercicios prácticos individuales orientados a incorporar funcionalidades avanzadas en una Aplicación Web Progresiva (PWA).
+<p align="center">
+  Desarrollo e implementación de funcionalidades avanzadas mediante APIs del navegador, almacenamiento local y estrategias de caché.
+</p>
 
-Durante las actividades se trabajan diferentes APIs del navegador para gestionar permisos, acceder a los dispositivos de hardware, generar notificaciones locales, almacenar información de forma persistente y consultar datos de servicios externos. También se implementan estrategias de almacenamiento en caché para mejorar la disponibilidad de la aplicación cuando no existe una conexión a Internet.
+---
 
-  Objetivo general
+## Índice
 
-Implementar funcionalidades avanzadas en una Aplicación Web Progresiva mediante el uso de APIs del navegador, almacenamiento local y estrategias de sincronización y caché, con la finalidad de mejorar la experiencia del usuario y permitir el acceso a determinadas funciones incluso sin conexión.
+1. [Descripción]
+2. [Objetivo general]
+3. [Ejercicio 1. Permisos y geolocalización]
+4. [Ejercicio 2. Captura de medios con cámara]
+5. [Ejercicio 3. Notificaciones locales]
+6. [Ejercicio 4. Persistencia con IndexedDB]
+7. [Ejercicio 5. Estrategia de caché dinámica]
 
-  Ejercicio 1. Consulta de permisos y geolocalización
+---
 
-Objetivo: Consultar los permisos del navegador y obtener la ubicación geográfica del dispositivo.
+## Descripción
 
-Funcionalidades:
+Este portafolio comprende cinco ejercicios prácticos individuales orientados a implementar funcionalidades avanzadas en una **Aplicación Web Progresiva (PWA)**.
 
-Consultar el estado de los permisos mediante navigator.permissions.query().
+Las actividades abarcan el uso de APIs del navegador para consultar permisos, obtener la ubicación del dispositivo, acceder a la cámara, generar notificaciones locales y almacenar información de manera persistente.
 
-Solicitar acceso a la ubicación con navigator.geolocation.getCurrentPosition().
+Asimismo, se trabaja con servicios web REST y estrategias de caché para facilitar la recuperación de datos cuando la aplicación no dispone de conexión a Internet.
 
-Obtener y mostrar las coordenadas de latitud y longitud.
+## Objetivo general
 
-Presentar la ubicación mediante texto o un mapa interactivo.
+Implementar funcionalidades avanzadas en una Aplicación Web Progresiva mediante el uso de APIs del navegador, almacenamiento local y estrategias de caché, con la finalidad de mejorar la experiencia del usuario y mantener la disponibilidad de la información en condiciones de conectividad limitada.
 
-  Ejercicio 2. Captura de medios con cámara web o móvil
+---
 
-Objetivo: Acceder a la cámara del dispositivo y capturar fotografías desde una interfaz web.
+## Ejercicio 1. Permisos y geolocalización
 
-Funcionalidades:
+**Objetivo:** consultar los permisos del navegador y obtener la ubicación geográfica del dispositivo.
 
-Solicitar acceso a la cámara mediante navigator.mediaDevices.getUserMedia().
+### Funcionalidades
 
-Mostrar la transmisión de video en un elemento HTML <video>.
+- Consultar el estado de los permisos mediante `navigator.permissions.query()`.
+- Solicitar acceso a la ubicación mediante `navigator.geolocation.getCurrentPosition()`.
+- Obtener y mostrar las coordenadas de latitud y longitud.
+- Presentar la ubicación mediante texto o un mapa interactivo.
 
-Capturar una imagen estática utilizando un elemento HTML <canvas>.
+**APIs utilizadas:** Permissions API y Geolocation API.
 
-Solicitar los permisos correspondientes antes de acceder al hardware.
+---
 
-  Ejercicio 3. Notificaciones locales desde el Service Worker
+## Ejercicio 2. Captura de medios con cámara
 
-Objetivo: Implementar notificaciones personalizadas mediante las APIs de notificaciones y Service Worker.
+**Objetivo:** acceder a la cámara web o móvil para visualizar el flujo de video y capturar fotografías desde una interfaz web.
 
-Funcionalidades:
+### Funcionalidades
 
-Solicitar autorización para mostrar notificaciones con Notification.requestPermission().
+- Solicitar acceso a la cámara mediante `navigator.mediaDevices.getUserMedia()`.
+- Mostrar el flujo de video en un elemento HTML `<video>`.
+- Capturar una fotografía utilizando un elemento HTML `<canvas>`.
+- Gestionar los permisos necesarios para acceder al hardware del dispositivo.
 
-Generar notificaciones con título, cuerpo e icono personalizados.
+**API principal:** MediaDevices API.
 
-Utilizar self.registration.showNotification() desde el Service Worker.
+---
 
-Configurar opciones adicionales, como la vibración cuando el dispositivo y el navegador sean compatibles.
+## Ejercicio 3. Notificaciones locales
 
-  Ejercicio 4. Persistencia de datos con IndexedDB
+**Objetivo:** implementar notificaciones personalizadas utilizando la API de notificaciones y un Service Worker.
 
-Objetivo: Almacenar y administrar información localmente para mantener los datos disponibles sin depender de una conexión a Internet.
+### Funcionalidades
 
-Funcionalidades:
+- Solicitar autorización mediante `Notification.requestPermission()`.
+- Configurar notificaciones con título, cuerpo e icono personalizados.
+- Mostrar notificaciones mediante `self.registration.showNotification()` desde el Service Worker.
+- Configurar opciones adicionales, como la vibración cuando sea compatible con el dispositivo.
 
-Abrir o crear una base de datos utilizando IndexedDB.
+**Tecnologías utilizadas:** Notification API y Service Workers.
 
-Crear un almacén de objetos (Object Store) para organizar los registros.
+---
 
-Insertar y consultar registros desde una interfaz sencilla.
+## Ejercicio 4. Persistencia de datos con IndexedDB
 
-Eliminar registros almacenados localmente.
+**Objetivo:** almacenar y administrar información localmente para permitir su consulta sin depender de una conexión a Internet.
 
-Conservar la información para consultarla posteriormente.
+### Funcionalidades
 
-  Ejercicio 5. Estrategia de caché dinámica con alternativa sin conexión
+- Abrir o crear una base de datos mediante IndexedDB.
+- Crear un almacén de objetos (*Object Store*) para organizar los registros.
+- Insertar nuevos registros en la base de datos.
+- Consultar la información almacenada.
+- Eliminar registros mediante una interfaz sencilla.
+- Mantener la información disponible para futuras consultas.
 
-Objetivo: Consultar datos de una API REST y conservar una copia local que permita mostrar la última información disponible cuando no haya conexión.
+**Tecnología principal:** IndexedDB.
 
-Funcionalidades:
+---
 
-Realizar solicitudes HTTP mediante fetch().
+## Ejercicio 5. Estrategia de caché dinámica
 
-Obtener y procesar respuestas en formato JSON desde una API REST.
+**Objetivo:** consumir información de una API REST y conservar una copia local que permita recuperar los últimos datos disponibles cuando falle la conexión.
 
-Guardar una copia de los datos mediante Cache API o IndexedDB.
+### Funcionalidades
 
-Implementar una estrategia de caché como Network-First o Stale-While-Revalidate.
+- Realizar solicitudes HTTP mediante `fetch()`.
+- Obtener y procesar respuestas en formato JSON.
+- Guardar una copia de los datos mediante Cache API o IndexedDB.
+- Implementar una estrategia de almacenamiento como `Network-First` o `Stale-While-Revalidate`.
+- Recuperar y mostrar los datos almacenados localmente cuando la solicitud de red falle.
 
-Recuperar y mostrar los datos almacenados cuando la solicitud de red falle.
 
+
+**Andrey**
+
+Portafolio de ejercicios prácticos de Aplicaciones Web Progresivas (PWA).
